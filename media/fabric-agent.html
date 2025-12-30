@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fabric AI Assistant</title>
+  <link rel="stylesheet" href="./fabric-agent.css">
+</head>
+
+<body>
+  <!-- Header -->
+  <div class="fabric-header">
+    <div class="header-title">
+      🤖 <span>Fabric AI</span>
+      <span class="version">v1.0</span>
+    </div>
+    <div class="header-status">
+      <span id="status-indicator" class="status-online"></span>
+      <span id="api-status">Ready</span>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="fabric-tabs" id="tabs">
+    <button class="tab active" data-tab="main">🏠 Home</button>
+    <button class="tab" data-tab="chat" id="chat-tab">💬 Chat</button>
+    <button id="new-chat-btn" title="New Chat">+</button>
+  </div>
+
+  <!-- Content Wrapper -->
+  <div class="content-wrapper">
+    <!-- Main Tab: Quick Actions -->
+    <div id="main-content" class="tab-content active">
+      <!-- Fabric Info -->
+      <div class="fabric-info">
+        <strong>🎮 Fabric 1.21.10 Setup</strong><br>
+        Loader: <code>0.18.4</code> | API: <code>0.138.4</code> | Java: <code>21</code>
+      </div>
+
+      <!-- Quick Actions Grid -->
+      <div class="quick-actions">
+        <div class="section-title">🚀 Mod Setup</div>
+        <div class="button-grid">
+          <button class="action-btn btn-setup" onclick="generateMod()">
+            🆕 New Mod
+          </button>
+        </div>
+
+        <div class="section-title">🧱 Game Elements</div>
+        <div class="button-grid">
+          <button class="action-btn btn-entity" onclick="generateEntity()">👹 Entity</button>
+          <button class="action-btn btn-block" onclick="generateBlock()">🧱 Block</button>
+          <button class="action-btn btn-item" onclick="generateItem()">📦 Item</button>
+          <button class="action-btn btn-command" onclick="generateCommand()">⚡ Command</button>
+        </div>
+
+        <div class="section-title">🎨 Client-Side</div>
+        <div class="button-grid">
+          <button class="action-btn btn-renderer" onclick="generateRenderer()">🖼️ Renderer</button>
+          <button class="action-btn btn-screen" onclick="generateScreen()">📱 Screen</button>
+          <button class="action-btn btn-overlay" onclick="generateOverlay()">📊 HUD</button>
+        </div>
+
+        <div class="section-title">⚙️ Advanced</div>
+        <div class="button-grid">
+          <button class="action-btn btn-config" onclick="generateConfig()">⚙️ Config</button>
+          <button class="action-btn btn-mixin" onclick="generateMixin()">🔧 Mixin</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Tab -->
+    <div id="chat-content" class="tab-content">
+      <!-- Controls -->
+      <div class="controls-bar">
+        <div class="control-group">
+          <select id="provider-select">
+            <option value="perplexity">Perplexity Pro</option>
+            <option value="deepseek">DeepSeek</option>
+          </select>
+          <select id="model-select">
+            <option value="sonar-pro">Sonar Pro (Fast)</option>
+            <option value="sonar-research">Sonar Research</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <button class="btn-small" id="mode-toggle">Chat Mode</button>
+          <button class="btn-small" id="clear-history">Clear</button>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="messages-container" id="messages">
+        <div class="empty-state">
+          <div class="empty-state-icon">🤖</div>
+          <div class="empty-state-title">Start a Conversation</div>
+          <div class="empty-state-description">
+            Ask about Fabric modding, generate code, or use quick actions above!
+          </div>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="input-container">
+        <textarea id="message-input" rows="1"
+          placeholder="Ask about Fabric modding, entities, blocks, mixins... or describe what you want to create"></textarea>
+        <button id="send-btn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar" id="status-bar"></div>
+
+  <script src="./fabric-agent.js"></script>
+</body>
+
+</html>

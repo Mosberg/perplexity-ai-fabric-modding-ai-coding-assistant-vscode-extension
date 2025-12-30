@@ -1,0 +1,155 @@
+{
+  "name": "fabric-modding-ai-coding-assistant",
+  "displayName": "Fabric Modding AI Coding Assistant",
+  "description": "AI-powered VS Code extension for Minecraft Fabric mod development",
+  "version": "1.0.0",
+  "publisher": "fabric-ai",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:java",
+    "onLanguage:json",
+    "onLanguage:gradle",
+    "onCommand:fabric.*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "fabric.setApiKey",
+        "title": "Fabric AI: Set API Keys"
+      },
+      {
+        "command": "fabric.newMod",
+        "title": "Fabric AI: New Mod Structure"
+      },
+      {
+        "command": "fabric.generateEntity",
+        "title": "Fabric AI: Generate Entity"
+      },
+      {
+        "command": "fabric.generateBlock",
+        "title": "Fabric AI: Generate Block"
+      },
+      {
+        "command": "fabric.generateItem",
+        "title": "Fabric AI: Generate Item"
+      },
+      {
+        "command": "fabric.generateCommand",
+        "title": "Fabric AI: Generate Command"
+      },
+      {
+        "command": "fabric.generateRenderer",
+        "title": "Fabric AI: Generate Renderer"
+      },
+      {
+        "command": "fabric.generateScreen",
+        "title": "Fabric AI: Generate Screen"
+      },
+      {
+        "command": "fabric.generateOverlay",
+        "title": "Fabric AI: Generate HUD Overlay"
+      },
+      {
+        "command": "fabric.generateConfig",
+        "title": "Fabric AI: Generate Config"
+      },
+      {
+        "command": "fabric.generateMixin",
+        "title": "Fabric AI: Generate Mixin"
+      },
+      {
+        "command": "fabric.chatWithAI",
+        "title": "Fabric AI: Open Chat"
+      },
+      {
+        "command": "fabric.showLogs",
+        "title": "Fabric AI: Show Logs"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fabric-ai-sidebar",
+          "title": "Fabric AI",
+          "icon": "media/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "fabric-ai-sidebar": [
+        {
+          "type": "webview",
+          "id": "fabric.agent",
+          "name": "Fabric AI Assistant",
+          "icon": "media/icon.png"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Fabric AI",
+      "properties": {
+        "fabric.minecraftVersion": {
+          "type": "string",
+          "default": "1.21.10",
+          "description": "Minecraft version"
+        },
+        "fabric.fabricApiVersion": {
+          "type": "string",
+          "default": "0.138.4+1.21.10",
+          "description": "Fabric API version"
+        },
+        "fabric.modId": {
+          "type": "string",
+          "default": "mana",
+          "description": "Default mod ID"
+        },
+        "fabric.packageName": {
+          "type": "string",
+          "default": "dk.mosberg",
+          "description": "Java package name"
+        },
+        "fabric.perplexityApiKey": {
+          "type": "string",
+          "description": "Perplexity API key (pplx-...)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test",
+    "package": "vscode-test --pack"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/jest": "^29.5.14",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "18.x",
+    "@types/node-fetch": "^2.6.13",
+    "@types/vscode": "^1.107.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^8.57.1",
+    "glob": "^10.5.0",
+    "jest": "^29.7.0",
+    "mocha": "^10.8.2",
+    "nock": "^13.5.6",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "abort-controller": "^3.0.0",
+    "node-fetch": "^2.7.0"
+  }
+}

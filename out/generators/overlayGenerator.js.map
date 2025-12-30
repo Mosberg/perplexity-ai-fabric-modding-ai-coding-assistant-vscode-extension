@@ -1,0 +1,1 @@
+{"version":3,"file":"overlayGenerator.js","sourceRoot":"","sources":["../../src/generators/overlayGenerator.ts"],"names":[],"mappings":";;;AAAA,mDAAgD;AAEhD,qCAAqC;AACrC,MAAa,gBAAiB,SAAQ,6BAAa;IACjD,KAAK,CAAC,QAAQ,CAAC,IAAY;QACzB,OAAO;eACI,IAAI,iDAAiD,CAAC;IACnE,CAAC;CACF;AALD,4CAKC"}
