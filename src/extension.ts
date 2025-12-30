@@ -1,204 +1,89 @@
 import * as vscode from "vscode";
 import { FabricAgent } from "./fabricAgent";
-import { HttpClient } from "./services/http-client";
-import { ErrorHandler } from "./utils/error-handler";
-import { Validators } from "./utils/validators";
+import { FabricConfigManager } from "./utils/fabricConfig";
 
-/**
- * Main extension activation function
- * Initializes all services, providers, and commands
- */
-export async function activate(
-  context: vscode.ExtensionContext
-): Promise<void> {
+export function activate(context: vscode.ExtensionContext) {
+  console.log("🎮 Ultimate Fabric AI ACTIVATED!");
+
+  // Config
+  const config = FabricConfigManager.getConfig();
+
+  // Output channel for error logging
   const outputChannel = vscode.window.createOutputChannel("Fabric AI");
-  const errorHandler = new ErrorHandler(outputChannel);
-  const httpClient = HttpClient.getInstance();
 
-  // Global error handler
-  process.on("uncaughtException", (error) => errorHandler.handleError(error));
-  process.on("unhandledRejection", (reason) =>
-    errorHandler.handleError(reason as Error)
-  );
+  // Core agent
+  const agent = new FabricAgent(context, outputChannel);
 
-  outputChannel.appendLine("[Fabric AI] Initializing...");
-
-  try {
-    // Validate API key on startup
-    const apiKey = await context.secrets.get("perplexityApiKey");
-    if (!apiKey || !Validators.validateApiKey(apiKey).valid) {
-      vscode.window.showWarningMessage(
-        "Fabric AI: Set your Perplexity API key (Ctrl+Shift+P → Fabric AI: Set API Keys)"
-      );
-    }
-
-    // Initialize core agent
-    const agent = new FabricAgent(
-      context,
-      httpClient,
-      errorHandler,
-      outputChannel
-    );
-
-    // Register all providers
-    registerProviders(context, agent, outputChannel);
-
-    // Register all commands
-    registerCommands(context, agent, errorHandler, outputChannel);
-
-    // Register status bar
-    registerStatusBar(context);
-
-    // Show welcome message
-    await showWelcomeMessage(context);
-
-    outputChannel.appendLine("[Fabric AI] ✅ Activated successfully!");
-
-    // Store references for deactivation
-    context.subscriptions.push({
-      dispose: () => {
-        httpClient.dispose();
-        outputChannel.appendLine("[Fabric AI] Disposed");
-      },
-    });
-  } catch (error) {
-    errorHandler.handleError(error);
-    outputChannel.appendLine(`[Fabric AI] ❌ Activation failed: ${error}`);
-  }
-}
-
-/**
- * Register language providers (completions, hovers, code actions)
- */
-function registerProviders(
-  context: vscode.ExtensionContext,
-  agent: FabricAgent,
-  outputChannel: vscode.OutputChannel
-): void {
-  outputChannel.appendLine("[Fabric AI] Registering providers...");
-
-  // Code completions for Java, JSON, Gradle
-  const completionLanguages = ["java", "json", "gradle", "groovy"];
-  for (const lang of completionLanguages) {
-    context.subscriptions.push(
-      vscode.languages.registerCompletionItemProvider(
-        { language: lang, scheme: "file" },
-        agent.getCompletionProvider(),
-        ".",
-        ",",
-        "("
-      )
-    );
-  }
-
-  // Hovers for Java
-  context.subscriptions.push(
+  // Register ALL providers
+  const providers = [
+    vscode.languages.registerCompletionItemProvider(
+      ["java", "json", "gradle"],
+      agent.getCompletionProvider()
+    ),
     vscode.languages.registerHoverProvider(
-      { language: "java", scheme: "file" },
+      ["java", "json", "gradle"],
       agent.getHoverProvider()
-    )
-  );
+    ),
 
-  // Webview sidebar
-  context.subscriptions.push(
+    // Webview sidebar
     vscode.window.registerWebviewViewProvider(
       "fabric.agent",
       agent.getWebviewProvider()
-    )
-  );
+    ),
 
-  outputChannel.appendLine("[Fabric AI] ✅ Providers registered");
-}
+    // ALL Commands (Fabric + Copilot)
+    vscode.commands.registerCommand("fabric.setApiKey", () =>
+      agent.setApiKey()
+    ),
+    vscode.commands.registerCommand("fabric.newMod", () =>
+      agent.generateModProject()
+    ),
+    vscode.commands.registerCommand("fabric.generateEntity", () =>
+      agent.generateEntity()
+    ),
+    vscode.commands.registerCommand("fabric.generateBlock", () =>
+      agent.generateBlock()
+    ),
+    vscode.commands.registerCommand("fabric.generateItem", () =>
+      agent.generateItem()
+    ),
+    vscode.commands.registerCommand("fabric.generateCommand", () =>
+      agent.generateCommand()
+    ),
+    vscode.commands.registerCommand("fabric.generateRenderer", () =>
+      agent.generateRenderer()
+    ),
+    vscode.commands.registerCommand("fabric.generateScreen", () =>
+      agent.generateScreen()
+    ),
+    vscode.commands.registerCommand("fabric.generateOverlay", () =>
+      agent.generateOverlay()
+    ),
+    vscode.commands.registerCommand("fabric.generateConfig", () =>
+      agent.generateConfig()
+    ),
+    vscode.commands.registerCommand("fabric.generateMixin", () =>
+      agent.generateMixin()
+    ),
 
-/**
- * Register all Fabric AI commands
- */
-function registerCommands(
-  context: vscode.ExtensionContext,
-  agent: FabricAgent,
-  errorHandler: ErrorHandler,
-  outputChannel: vscode.OutputChannel
-): void {
-  outputChannel.appendLine("[Fabric AI] Registering commands...");
-
-  const commands = [
-    { id: "fabric.setApiKey", handler: () => agent.setApiKeys() },
-    { id: "fabric.newMod", handler: () => agent.generateModStructure() },
-    { id: "fabric.generateEntity", handler: () => agent.generateEntity() },
-    { id: "fabric.generateBlock", handler: () => agent.generateBlock() },
-    { id: "fabric.generateItem", handler: () => agent.generateItem() },
-    { id: "fabric.generateCommand", handler: () => agent.generateCommand() },
-    { id: "fabric.generateRenderer", handler: () => agent.generateRenderer() },
-    { id: "fabric.generateScreen", handler: () => agent.generateScreen() },
-    { id: "fabric.generateOverlay", handler: () => agent.generateOverlay() },
-    { id: "fabric.generateConfig", handler: () => agent.generateConfig() },
-    { id: "fabric.generateMixin", handler: () => agent.generateMixin() },
-    { id: "fabric.chatWithAI", handler: () => agent.openChat() },
-    { id: "fabric.showLogs", handler: () => outputChannel.show() },
+    // Copilot commands (from perplexity-ai-copilot)
+    vscode.commands.registerCommand("copilot.chat", () =>
+      agent.openCopilotChat()
+    ),
+    vscode.commands.registerCommand("copilot.explain", () =>
+      agent.explainCode()
+    ),
+    vscode.commands.registerCommand("copilot.generate", () =>
+      agent.generateCode()
+    ),
   ];
 
-  for (const cmd of commands) {
-    context.subscriptions.push(
-      vscode.commands.registerCommand(cmd.id, async () => {
-        try {
-          await cmd.handler();
-        } catch (error) {
-          errorHandler.handleError(error);
-        }
-      })
-    );
-  }
+  context.subscriptions.push(...providers);
 
-  outputChannel.appendLine(
-    `[Fabric AI] ✅ ${commands.length} commands registered`
+  // Welcome message
+  vscode.window.showInformationMessage(
+    "🤖 Ultimate Fabric AI Ready! Open sidebar or Ctrl+Shift+P → Fabric AI"
   );
 }
 
-/**
- * Register status bar item
- */
-function registerStatusBar(context: vscode.ExtensionContext): void {
-  const statusBar = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Right,
-    100
-  );
-
-  statusBar.command = "fabric.chatWithAI";
-  statusBar.text = "🤖 Fabric AI";
-  statusBar.tooltip = "Fabric Modding AI Assistant";
-  statusBar.show();
-
-  context.subscriptions.push(statusBar);
-}
-
-/**
- * Show welcome message on first activation
- */
-async function showWelcomeMessage(
-  context: vscode.ExtensionContext
-): Promise<void> {
-  const hasShown = context.globalState.get("fabricAI.welcomeShown", false);
-  if (hasShown) {
-    return;
-  }
-
-  const selection = await vscode.window.showInformationMessage(
-    "🎉 Welcome to Fabric Modding AI!",
-    "Set API Key",
-    "Don't Show Again"
-  );
-
-  if (selection === "Set API Key") {
-    vscode.commands.executeCommand("fabric.setApiKey");
-  } else if (selection === "Don't Show Again") {
-    await context.globalState.update("fabricAI.welcomeShown", true);
-  }
-}
-
-/**
- * Extension deactivation - cleanup resources
- */
-export function deactivate(): void {
-  // Global cleanup will be handled by FabricAgent dispose
-  console.log("[Fabric AI] Extension deactivated");
-}
+export function deactivate() {}

@@ -6,6 +6,24 @@ const fabricConfig_1 = require("./fabricConfig");
  * Fabric project templates (build.gradle, fabric.mod.json, etc.)
  */
 class TemplateManager {
+    /**
+     * Create a new Fabric mod project in the given folder
+     */
+    static async createModProject(folderUri, modId, modName) {
+        const fs = require("fs/promises");
+        const path = require("path");
+        const config = fabricConfig_1.FabricConfigManager.getConfig();
+        // Create build.gradle
+        const buildGradle = this.getBuildGradle(config);
+        await fs.writeFile(path.join(folderUri.fsPath, "build.gradle"), buildGradle, "utf8");
+        // Create fabric.mod.json
+        const modJson = this.getFabricModJson(modId, modName);
+        await fs.mkdir(path.join(folderUri.fsPath, "src", "main", "resources"), {
+            recursive: true,
+        });
+        await fs.writeFile(path.join(folderUri.fsPath, "src", "main", "resources", "fabric.mod.json"), modJson, "utf8");
+        // Add more files as needed (README, .gitignore, etc.)
+    }
     static getBuildGradle(config) {
         return `plugins {
   id 'fabric-loom' version '${config.loomVersion}'
