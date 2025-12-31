@@ -4,84 +4,84 @@ exports.EntityGenerator = void 0;
 const baseGenerator_1 = require("./baseGenerator");
 class EntityGenerator extends baseGenerator_1.BaseGenerator {
     async generate(name) {
-        this.validateName(name, "entity");
-        const config = this.getFabricConfig();
-        const entityName = name;
-        const entityId = entityName.toLowerCase();
-        return `package ${config.packageName}.entity;
+        this.validateName(name, 'entity');
+        const pkg = this.getPackage('entity');
+        const entityId = name.toLowerCase();
+        const code = `package ${pkg};
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
+import net.minecraft.entity.ai.goal.LookAroundGoal;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
-import net.minecraft.recipe.Ingredient;
+import net.minecraft.world.World;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.entity.SpawnGroup;
 
-${this.getFabricImports().join("\n")}
-
-public class ${entityName}Entity extends LivingEntity {
-  public static final EntityType<${entityName}Entity> TYPE =
-    Registry.register(Registries.ENTITY_TYPE,
-      new Identifier("${config.modId}", "${entityId}"),
-      EntityType.Builder.create(${entityName}Entity::new, SpawnGroup.CREATURE)
+public class ${name}Entity extends LivingEntity {
+  public static final EntityType<${name}Entity> TYPE =
+    Registry.register(
+      Registries.ENTITY_TYPE,
+      ${this.modId(entityId)},
+      EntityType.Builder
+        .create(${name}Entity::new, SpawnGroup.CREATURE)
         .dimensions(0.6f, 1.8f)
         .build("${entityId}")
     );
 
-  public ${entityName}Entity(EntityType<? extends ${entityName}Entity> entityType, World world) {
+  public ${name}Entity(EntityType<${name}Entity> entityType, World world) {
     super(entityType, world);
   }
 
   @Override
   protected void initGoals() {
-    this.goalSelector.add(1, new MeleeAttackGoal(this, 1.0, true));
-    this.goalSelector.add(7, new WanderAroundFarGoal(this, 1.0));
-  }
-
-  public static DefaultAttributeContainer.Builder createAttributes() {
-    return LivingEntity.createLivingAttributes()
-      .add(EntityAttributes.GENERIC_MAX_HEALTH, 20.0)
-      .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.25)
-      .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 3.0)
-      .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 32.0);
+    this.goalSelector.add(1, new MeleeAttackGoal(this, 1.2D, false));
+    this.goalSelector.add(2, new WanderAroundFarGoal(this, 1.0D));
+    this.goalSelector.add(3, new LookAroundGoal(this));
   }
 
   @Override
-  protected SoundEvent getAmbientSound() {
-    return SoundEvents.ENTITY_ZOMBIE_AMBIENT;
+  public DefaultAttributeContainer.Builder createAttributeMap() {
+    return DefaultAttributeContainer.createBuilder()
+        .add(EntityAttributes.GENERIC_MAX_HEALTH, 20.0D)
+        .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.25D)
+        .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 3.0D)
+        .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 32.0D);
+  }
+
+  @Override
+  public boolean damage(DamageSource source, float amount) {
+    if (this.isInvulnerableTo(source)) {
+      return false;
+    }
+    return super.damage(source, amount);
   }
 
   @Override
   protected SoundEvent getHurtSound(DamageSource source) {
-    return SoundEvents.ENTITY_ZOMBIE_HURT;
+    return SoundEvents.ENTITY_GENERIC_HURT;
   }
 
   @Override
   protected SoundEvent getDeathSound() {
-    return SoundEvents.ENTITY_ZOMBIE_DEATH;
+    return SoundEvents.ENTITY_GENERIC_DEATH;
   }
 
   @Override
-  public Ingredient getBreedItem() {
-    return Ingredient.ofItems(Items.WHEAT);
+  public boolean canBeControlledByRider() {
+    return false;
   }
-
-  // Client-side renderer registration
-  @Environment(EnvType.CLIENT)
-  public static void registerRenderer() {
-    // EntityRendererRegistry.register(TYPE, ${entityName}EntityRenderer::new);
-  }
-}`;
+}
+`;
+        this.logGeneration('entity', name, code.split('\n').length);
+        return code;
     }
 }
 exports.EntityGenerator = EntityGenerator;

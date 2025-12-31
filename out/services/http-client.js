@@ -34,130 +34,105 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HttpClient = void 0;
-Promise.resolve().then(() => __importStar(require("node-fetch")));
-/**
- * Production-grade HTTP client singleton with retry logic and streaming
- * Features: retry with exponential backoff, timeouts, streaming, cleanup
- */
+const vscode = __importStar(require("vscode"));
 class HttpClient {
-    constructor(config) {
-        this.activeControllers = new Map();
-        this.config = {
-            timeout: config?.timeout ?? 30000,
-            maxRetries: config?.maxRetries ?? 3,
-            retryDelay: config?.retryDelay ?? 1000,
-            backoffMultiplier: config?.backoffMultiplier ?? 2,
-        };
+    constructor() {
+        this.defaultTimeout = 30000; // 30s
+        this.maxRetries = 3;
     }
-    static getInstance(config) {
+    static getInstance() {
         if (!HttpClient.instance) {
-            HttpClient.instance = new HttpClient(config);
+            HttpClient.instance = new HttpClient();
         }
         return HttpClient.instance;
     }
-    /**
-     * Make HTTP request with automatic retry logic
-     */
     async request(url, options = {}) {
-        const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const timeout = options.timeout ?? this.config.timeout;
-        const maxRetries = options.retries ?? this.config.maxRetries;
-        let lastError = null;
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const { retries = this.maxRetries, ...fetchOptions } = options;
+        for (let attempt = 0; attempt <= retries; attempt++) {
             try {
-                return await this.executeRequest(url, options, timeout, requestId);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), this.defaultTimeout);
+                const response = await fetch(url, {
+                    ...fetchOptions,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
             }
             catch (error) {
-                lastError = error instanceof Error ? error : new Error(String(error));
-                if (this.isClientError(lastError) || attempt === maxRetries) {
-                    throw lastError;
+                if (attempt === retries || error.name === 'AbortError') {
+                    throw error;
                 }
-                const delay = this.config.retryDelay *
-                    Math.pow(this.config.backoffMultiplier, attempt);
-                await new Promise((resolve) => setTimeout(resolve, delay));
+                // Exponential backoff
+                const delay = Math.pow(2, attempt) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
-        throw lastError ?? new Error("Unknown error after all retries");
+        throw new Error('Max retries exceeded');
     }
-    /**
-     * Streaming request using AsyncGenerator
-     */
-    async *streamRequest(url, options = {}) {
-        const requestId = `stream-${Date.now()}-${Math.random()
-            .toString(36)
-            .slice(2)}`;
+    // Streaming for chat completions
+    async *streamRequest(url, options) {
         const controller = new AbortController();
-        this.activeControllers.set(requestId, controller);
-        const timeoutId = setTimeout(() => controller.abort(), options.timeout ?? this.config.timeout);
         try {
             const response = await fetch(url, {
                 ...options,
-                signal: controller.signal,
+                headers: {
+                    ...options.headers,
+                    'Accept': 'text/event-stream',
+                    'Cache-Control': 'no-cache'
+                },
+                signal: controller.signal
             });
-            clearTimeout(timeoutId);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            if (!response.body) {
-                throw new Error("No response body");
+            if (!response.ok || !response.body) {
+                throw new Error(`Stream failed: ${response.status}`);
             }
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            try {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        break;
-                    }
-                    const chunk = decoder.decode(value, { stream: true });
-                    yield chunk;
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
                 }
+                const chunk = decoder.decode(value);
+                yield chunk;
             }
-            finally {
-                reader.releaseLock();
-            }
         }
-        finally {
-            clearTimeout(timeoutId);
-            this.activeControllers.delete(requestId);
+        catch (error) {
+            controller.abort();
+            throw error;
         }
     }
-    /**
-     * Abort all active requests
-     */
-    abortAll() {
-        this.activeControllers.forEach((controller) => controller.abort());
-        this.activeControllers.clear();
+    // Perplexity API helper
+    async chatCompletion(messages, model = 'llama-3.1-sonar-small-128k-online') {
+        const apiKey = await this.getApiKey();
+        const response = await this.request('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model,
+                messages,
+                temperature: 0.1,
+                stream: false
+            })
+        });
+        return response.choices[0].message.content;
     }
-    /**
-     * Cleanup resources
-     */
-    dispose() {
-        this.abortAll();
-    }
-    async executeRequest(url, options, timeout, requestId) {
-        const controller = new AbortController();
-        this.activeControllers.set(requestId, controller);
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        try {
-            const response = await fetch(url, {
-                ...options,
-                signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => "Unknown error");
-                throw new Error(`HTTP ${response.status}: ${errorText.slice(0, 200)}`);
-            }
-            return (await response.json());
+    // Secure API key retrieval
+    async getApiKey() {
+        // In real implementation, use context.secrets.get('perplexity-api-key')
+        // For now, fallback to config
+        const config = vscode.workspace.getConfiguration('fabric');
+        const apiKey = config.get('perplexityApiKey');
+        if (!apiKey || !apiKey.startsWith('pplx-')) {
+            throw new Error('Perplexity API key not configured. Run "Fabric AI: Set API Key"');
         }
-        finally {
-            clearTimeout(timeoutId);
-            this.activeControllers.delete(requestId);
-        }
-    }
-    isClientError(error) {
-        return /^HTTP 4\d{2}/.test(error.message);
+        return apiKey;
     }
 }
 exports.HttpClient = HttpClient;

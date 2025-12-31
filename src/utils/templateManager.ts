@@ -5,6 +5,15 @@ import { FabricConfigManager } from "./fabricConfig";
  * Fabric project templates (build.gradle, fabric.mod.json, etc.)
  */
 export class TemplateManager {
+  static getModInitializer(_modId: string, _packageName: string) {
+    throw new Error('Method not implemented.');
+  }
+  static getGradleProperties(_config: FabricConfig) {
+    throw new Error('Method not implemented.');
+  }
+  static getModsToml(_modId: string, _modName: string) {
+    throw new Error('Method not implemented.');
+  }
   /**
    * Create a new Fabric mod project in the given folder
    */
@@ -58,7 +67,7 @@ dependencies {
   minecraft "com.mojang:minecraft:${config.minecraftVersion}"
   mappings "net.fabricmc:yarn:${config.yarnMappings}:v2"
   modImplementation "net.fabricmc:fabric-loader:${config.loaderVersion}"
-  modImplementation "net.fabricmc.fabric-api:fabric-api:${config.fabricVersion}"
+  modImplementation "net.fabricmc.fabric-api:fabric-api:${config.fabricApiVersion}"
 }
 
 processResources {

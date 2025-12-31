@@ -1,0 +1,109 @@
+{
+  "Fabric Block + Item": {
+    "prefix": "fabricblock",
+    "body": [
+      "public static final ${1:MyBlock} BLOCK = Registry.register(",
+      "  Registries.BLOCK,",
+      "  Identifier.of(\"${2:mana}\", \"${3:my_block}\"),",
+      "  new ${1:MyBlock}(FabricBlockSettings.create()",
+      "    .material(Material.${4:STONE})",
+      "    .strength(${5:3.0f}, ${6:9.0f})",
+      "    .sounds(BlockSoundGroup.${7:STONE}))",
+      ");",
+      "",
+      "public static final Item ITEM = Registry.register(",
+      "  Registries.ITEM,",
+      "  Identifier.of(\"${2:mana}\", \"${3:my_block}\"),",
+      "  new BlockItem(BLOCK, new Item.Settings().groups(ItemGroup.BUILDING_BLOCKS))",
+      ");"
+    ],
+    "description": "Complete Fabric block + auto-item registration"
+  },
+  "Fabric Item": {
+    "prefix": "fabricitem",
+    "body": [
+      "public static final ${1:MyItem} ITEM = Registry.register(",
+      "  Registries.ITEM,",
+      "  Identifier.of(\"${2:mana}\", \"${3:my_item}\"),",
+      "  new ${1:MyItem}(new Item.Settings()",
+      "    .group(ItemGroup.${4:MISC})",
+      "    .maxCount(${5:64}))",
+      ");"
+    ],
+    "description": "Fabric item registration"
+  },
+  "Entity Type": {
+    "prefix": "fabricentity",
+    "body": [
+      "public static final EntityType<${1:MyEntity}> TYPE = Registry.register(",
+      "  Registries.ENTITY_TYPE,",
+      "  Identifier.of(\"${2:mana}\", \"${3:my_entity}\"),",
+      "  EntityType.Builder",
+      "    .create(${1:MyEntity}::new, SpawnGroup.${4:CREATURE})",
+      "    .dimensions(${5:0.6f}, ${6:1.8f})",
+      "    .build(\"${3:my_entity}\")",
+      ");"
+    ],
+    "description": "Complete Fabric entity type"
+  },
+  "Creative Tab": {
+    "prefix": "fabrictab",
+    "body": [
+      "public static final ItemGroup ${1:MY_TAB} = FabricItemGroup.builder()",
+      "  .icon(() -> new ItemStack(${2:Items.DIAMOND}))",
+      "  .displayName(Text.translatable(\"itemGroup.${3:my_tab}\"))",
+      "  .build();"
+    ],
+    "description": "Fabric creative tab"
+  },
+  "Mixin Inject": {
+    "prefix": "mixininject",
+    "body": [
+      "@Inject(method = \"${1:methodName}\", at = @At(value = \"${2:HEAD|TAIL|INVOKE}\"))",
+      "private void ${3:myMixin}(CallbackInfo ci) {",
+      "  // Custom logic here",
+      "}"
+    ],
+    "description": "Fabric mixin injection"
+  },
+  "Command Registration": {
+    "prefix": "fabriccommand",
+    "body": [
+      "CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {",
+      "  dispatcher.register(",
+      "    CommandManager.literal(\"${1:mycommand}\")",
+      "      .executes(context -> {",
+      "        context.getSource().sendFeedback(() -> Text.literal(\"Hello!\"), false);",
+      "        return 1;",
+      "      })",
+      "  );",
+      "});"
+    ],
+    "description": "Fabric Brigadier command"
+  },
+  "Cloth Config": {
+    "prefix": "clothconfig",
+    "body": [
+      "@ConfigEntry.Gui.RequiresRestart",
+      "public boolean ${1:mySetting} = ${2:true};",
+      "",
+      "@Comment(\"${3:Setting description}\")",
+      "public int ${4:myValue} = ${5:10};"
+    ],
+    "description": "Cloth Config entry"
+  },
+  "Mod Initializer": {
+    "prefix": "modinit",
+    "body": [
+      "@Override",
+      "public void onInitialize() {",
+      "  LOGGER.info(\"${1:MyMod} initializing!\");",
+      "",
+      "  ${2:MyBlock}.register();",
+      "  ${3:MyItem}.register();",
+      "  ${4:MyCommand}.register();",
+      "}"
+    ],
+    "description": "Fabric mod initializer"
+  }
+}

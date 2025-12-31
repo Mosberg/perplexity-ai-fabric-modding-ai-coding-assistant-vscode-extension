@@ -1,32 +1,26 @@
 {
-  "name": "ultimate-fabric-modding-ai",
-  "displayName": "Ultimate Fabric Modding AI",
-  "description": "AI-powered Fabric modding: Copilot + CodeGen + Chat + Completions + ALL features combined",
+  "name": "perplexity-fabric-modding-ai",
+  "displayName": "Perplexity Fabric Modding AI",
+  "description": "AI-powered Fabric modding: 10+ generators, chat, completions, project setup",
   "version": "2.0.0",
   "publisher": "mosberg",
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": [
-    "Programming Languages",
-    "Other"
-  ],
+  "categories": ["Programming Languages", "Other"],
   "activationEvents": [
     "onLanguage:java",
     "onLanguage:json",
     "onLanguage:gradle",
     "onLanguage:properties",
-    "onCommand:fabric.*",
-    "onCommand:copilot.*",
-    "onView:fabric.*"
+    "onCommand:fabric.*"
   ],
   "main": "./out/extension.js",
-  "icon": "media/icon.png",
   "contributes": {
     "commands": [
       {
         "command": "fabric.setApiKey",
-        "title": "Fabric AI: Set API Keys"
+        "title": "Fabric AI: Set Perplexity API Key"
       },
       {
         "command": "fabric.newMod",
@@ -58,7 +52,7 @@
       },
       {
         "command": "fabric.generateOverlay",
-        "title": "Fabric AI: Generate HUD"
+        "title": "Fabric AI: Generate HUD Overlay"
       },
       {
         "command": "fabric.generateConfig",
@@ -69,100 +63,55 @@
         "title": "Fabric AI: Generate Mixin"
       },
       {
-        "command": "copilot.chat",
-        "title": "Copilot: Chat"
-      },
-      {
-        "command": "copilot.explain",
-        "title": "Copilot: Explain Code"
-      },
-      {
-        "command": "copilot.generate",
-        "title": "Copilot: Generate Code"
+        "command": "fabric.showLogs",
+        "title": "Fabric AI: Show Logs"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "fabric-ai",
+          "id": "fabric-ai-sidebar",
           "title": "🤖 Fabric AI",
           "icon": "media/icon.png"
         }
       ]
     },
     "views": {
-      "fabric-ai": [
+      "fabric-ai-sidebar": [
         {
           "type": "webview",
           "id": "fabric.agent",
-          "name": "AI Assistant",
-          "icon": "media/icon.png"
-        },
-        {
-          "type": "webview",
-          "id": "fabric.generators",
-          "name": "Generators",
-          "icon": "media/icon.png"
-        },
-        {
-          "type": "webview",
-          "id": "fabric.chat",
-          "name": "Chat",
+          "name": "Fabric AI Assistant",
           "icon": "media/icon.png"
         }
       ]
     },
     "configuration": {
-      "title": "Ultimate Fabric AI",
+      "title": "Fabric AI",
       "properties": {
+        "fabric.minecraftVersion": {
+          "type": "string",
+          "default": "1.21.10",
+          "description": "Minecraft version"
+        },
+        "fabric.fabricApiVersion": {
+          "type": "string",
+          "default": "0.138.4+1.21.10",
+          "description": "Fabric API version"
+        },
         "fabric.modId": {
           "type": "string",
           "default": "mana",
-          "description": "Mod ID (lowercase, e.g. mana)"
+          "description": "Default mod ID"
         },
         "fabric.packageName": {
           "type": "string",
           "default": "dk.mosberg",
-          "description": "Java base package for generated code (e.g. dk.mosberg)"
+          "description": "Java package name"
         },
-        "fabric.minecraftVersion": {
+        "fabric.perplexityApiKey": {
           "type": "string",
-          "default": "1.21.10",
-          "description": "Minecraft version for mod project"
-        },
-        "fabric.yarnMappings": {
-          "type": "string",
-          "default": "1.21.10+build.3",
-          "description": "Yarn mappings version (e.g. 1.21.10+build.3)"
-        },
-        "fabric.loaderVersion": {
-          "type": "string",
-          "default": "0.18.4",
-          "description": "Fabric Loader version (e.g. 0.18.4)"
-        },
-        "fabric.fabricVersion": {
-          "type": "string",
-          "default": "0.138.4+1.21.10",
-          "description": "Fabric API version (e.g. 0.138.4+1.21.10)"
-        },
-        "fabric.loomVersion": {
-          "type": "string",
-          "default": "1.14.10",
-          "description": "Loom version (e.g. 1.14.10)"
-        },
-        "fabric.javaVersion": {
-          "type": "number",
-          "default": 21,
-          "description": "Java version (e.g. 21)"
-        },
-        "copilot.model": {
-          "type": "string",
-          "default": "sonar-pro",
-          "enum": [
-            "sonar-pro",
-            "llama-3.1",
-            "deepseek"
-          ]
+          "description": "Perplexity API key (pplx-...)"
         }
       }
     },
@@ -177,21 +126,28 @@
     "vscode:prepublish": "npm run package",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "npm run compile && vscode-test",
+    "test": "vscode-test",
     "package": "vsce package"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
-    "typescript": "^5.4.5",
     "eslint": "^8.57.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "glob": "^10.3.12",
+    "mocha": "^10.4.0",
+    "typescript": "^5.4.5",
+    "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "vsce": "^2.15.0"
   },
   "dependencies": {
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "abort-controller": "^3.0.0"
   }
 }

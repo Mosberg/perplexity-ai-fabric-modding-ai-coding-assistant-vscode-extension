@@ -35,85 +35,121 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebviewProvider = void 0;
 const vscode = __importStar(require("vscode"));
-/**
- * Webview sidebar provider for Fabric AI interface
- */
 class WebviewProvider {
-    constructor(_agent, chatProvider) {
+    constructor(agent, chatProvider) {
+        this.agent = agent;
         this.chatProvider = chatProvider;
     }
     resolveWebviewView(webviewView, _context, _token) {
+        this._view = webviewView;
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [],
+            localResourceRoots: [
+                vscode.Uri.joinPath(this.agent.getContext().extensionUri, 'media'),
+                vscode.Uri.joinPath(this.agent.getContext().extensionUri, 'snippets')
+            ]
         };
-        webviewView.webview.html = this.getHtmlContent(); // Now loads external CSS/JS
+        webviewView.webview.html = this.getWebviewContent();
+        // Handle messages from webview
         webviewView.webview.onDidReceiveMessage(async (data) => {
-            switch (data.command) {
-                case "sendMessage":
-                    const response = await this.chatProvider.sendMessage(data.text, (chunk) => {
-                        webviewView.webview.postMessage({
-                            command: "streamChunk",
-                            content: chunk,
-                        });
-                    });
-                    webviewView.webview.postMessage({
-                        command: "streamEnd",
-                        content: response,
-                    });
-                    break;
-                case "generateEntity":
-                    await vscode.commands.executeCommand("fabric.generateEntity");
-                    break;
-                case "generateBlock":
-                    await vscode.commands.executeCommand("fabric.generateBlock");
-                    break;
-                // Add other generator commands...
-            }
+            await this.handleMessage(data);
         });
     }
-    getHtmlContent() {
+    getWebviewContent() {
         return `<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fabric AI</title>
-    <style>
-        body { font-family: var(--vscode-font-family); margin: 0; padding: 16px; }
-        .header { font-size: 18px; font-weight: bold; margin-bottom: 16px; }
-        .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
-        .action-btn { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-        .chat-input { width: 100%; padding: 12px; border: 1px solid var(--vscode-input-border); border-radius: 6px; }
-        .send-btn { padding: 12px 24px; background: var(--vscode-button-background); border: none; border-radius: 6px; cursor: pointer; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fabric AI Assistant</title>
+  <link href="./fabric-agent.css" rel="stylesheet">
 </head>
 <body>
-    <div class="header">🤖 Fabric AI Assistant</div>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🤖 Fabric AI</h1>
+      <div class="status" id="status">Ready</div>
+    </div>
 
+    <!-- Quick Actions -->
     <div class="quick-actions">
-        <button class="action-btn" onclick="vscode.postMessage({command: 'generateEntity'})">Entity</button>
-        <button class="action-btn" onclick="vscode.postMessage({command: 'generateBlock'})">Block</button>
-        <button class="action-btn" onclick="vscode.postMessage({command: 'generateItem'})">Item</button>
-        <button class="action-btn" onclick="vscode.postMessage({command: 'generateCommand'})">Command</button>
-        <button class="action-btn" onclick="vscode.postMessage({command: 'generateMixin'})">Mixin</button>
+      <h3>🚀 Quick Generate</h3>
+      <div class="action-grid">
+        <button class="action-btn entity" data-action="generateEntity">👹 Entity</button>
+        <button class="action-btn block" data-action="generateBlock">🧱 Block</button>
+        <button class="action-btn item" data-action="generateItem">📦 Item</button>
+        <button class="action-btn command" data-action="generateCommand">⚡ Command</button>
+        <button class="action-btn renderer" data-action="generateRenderer">🖼️ Renderer</button>
+        <button class="action-btn screen" data-action="generateScreen">📱 Screen</button>
+        <button class="action-btn overlay" data-action="generateOverlay">📊 HUD</button>
+        <button class="action-btn config" data-action="generateConfig">⚙️ Config</button>
+        <button class="action-btn mixin" data-action="generateMixin">🔧 Mixin</button>
+      </div>
     </div>
 
-    <div style="margin-top: 24px;">
-        <input class="chat-input" id="chatInput" placeholder="Ask about Fabric modding...">
-        <button class="send-btn" onclick="sendMessage()">Send</button>
+    <!-- Chat -->
+    <div class="chat-section">
+      <h3>💬 AI Chat</h3>
+      <div class="messages" id="messages"></div>
+      <div class="input-area">
+        <input type="text" id="messageInput" placeholder="Ask about Fabric modding...">
+        <button id="sendBtn">Send</button>
+      </div>
     </div>
+  </div>
 
-    <script>
-        const vscode = acquireVsCodeApi();
-        async function sendMessage() {
-            const input = document.getElementById('chatInput');
-            vscode.postMessage({ command: 'sendMessage', text: input.value });
-            input.value = '';
-        }
-    </script>
+  <script src="./fabric-agent.js"></script>
 </body>
 </html>`;
+    }
+    async handleMessage(data) {
+        try {
+            switch (data.command) {
+                case 'generateEntity':
+                    await vscode.commands.executeCommand('fabric.generateEntity');
+                    break;
+                case 'generateBlock':
+                    await vscode.commands.executeCommand('fabric.generateBlock');
+                    break;
+                case 'generateItem':
+                    await vscode.commands.executeCommand('fabric.generateItem');
+                    break;
+                case 'generateCommand':
+                    await vscode.commands.executeCommand('fabric.generateCommand');
+                    break;
+                case 'generateRenderer':
+                    await vscode.commands.executeCommand('fabric.generateRenderer');
+                    break;
+                case 'generateScreen':
+                    await vscode.commands.executeCommand('fabric.generateScreen');
+                    break;
+                case 'generateOverlay':
+                    await vscode.commands.executeCommand('fabric.generateOverlay');
+                    break;
+                case 'generateConfig':
+                    await vscode.commands.executeCommand('fabric.generateConfig');
+                    break;
+                case 'generateMixin':
+                    await vscode.commands.executeCommand('fabric.generateMixin');
+                    break;
+                case 'sendMessage':
+                    const response = await this.chatProvider.sendMessage(data.text, (chunk) => {
+                        this._view?.webview.postMessage({
+                            command: 'streamChunk',
+                            content: chunk
+                        });
+                    });
+                    this._view?.webview.postMessage({
+                        command: 'streamEnd',
+                        content: response
+                    });
+                    break;
+            }
+        }
+        catch (error) {
+            this.agent.getErrorHandler().handleError(error);
+        }
     }
 }
 exports.WebviewProvider = WebviewProvider;

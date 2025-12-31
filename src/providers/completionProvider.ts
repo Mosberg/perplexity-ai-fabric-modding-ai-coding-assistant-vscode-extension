@@ -1,75 +1,117 @@
-import * as vscode from "vscode";
-import { CompletionItemKind } from "vscode";
+import * as vscode from 'vscode';
+import { CompletionItemKind, SnippetString } from 'vscode';
 
-/**
- * Language server completion provider for Java/Fabric code
- */
+
 export class CompletionProvider implements vscode.CompletionItemProvider {
   constructor() {}
 
-  async provideCompletionItems(
+  provideCompletionItems(
     document: vscode.TextDocument,
-    position: vscode.Position
-  ): Promise<vscode.CompletionItem[] | undefined> {
-    const linePrefix = document
-      .lineAt(position)
-      .text.slice(0, position.character);
-    const triggerCharacter = linePrefix.slice(-1);
+    position: vscode.Position,
+    _token: vscode.CancellationToken,
+    context: vscode.CompletionContext
+  ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
 
-    // Common Fabric triggers
-    if ([".", ",", "("].includes(triggerCharacter)) {
-      return this.getFabricCompletions(document, position, linePrefix);
+    const linePrefix = document.lineAt(position).text.slice(0, position.character);
+    const triggerChar = context.triggerCharacter;
+
+    // Fabric-specific triggers
+    if (['.', '(', ','].includes(triggerChar || '')) {
+      return this.getFabricCompletions(linePrefix);
     }
 
-    return undefined;
+    return this.getContextualCompletions(linePrefix);
   }
 
-  private async getFabricCompletions(
-    _document: vscode.TextDocument,
-    _position: vscode.Position,
+  private getFabricCompletions(
     prefix: string
-  ): Promise<vscode.CompletionItem[]> {
+  ): vscode.CompletionItem[] {
     const completions: vscode.CompletionItem[] = [];
 
-    // Fabric API completions
-    const fabricCompletions = [
+    // Registry completions
+    const registryCompletions = [
       {
-        label: "Registry.register",
+        label: 'Registry.register',
         kind: CompletionItemKind.Method,
-        insertText:
-          'Registry.register(Registries.${1:registry}, Identifier.of("${2:modid}", "${3:name}"), ${4:value})',
+        insertText: new SnippetString('Registry.register(Registries.${1:block}, Identifier.of("${2:mana}", "${3:name}"), ${4:new ${5:Block}(FabricBlockSettings.create())})')
       },
       {
-        label: "Identifier.of",
+        label: 'Identifier.of',
         kind: CompletionItemKind.Method,
-        insertText: 'Identifier.of("${1:modid}", "${2:name}")',
+        insertText: new SnippetString('Identifier.of("${1:mana}", "${2:name}")')
       },
       {
-        label: "FabricItemGroup.builder",
+        label: 'FabricItemGroup.builder',
         kind: CompletionItemKind.Constructor,
-        insertText: "FabricItemGroup.builder().icon(${1:item}).build()",
-      },
-      {
-        label: "EntityType.Builder",
-        kind: CompletionItemKind.Constructor,
-        insertText:
-          'EntityType.Builder.create(${1:EntityClass}::new, SpawnGroup.${2:CREATURE}).dimensions(${3:0.6f}, ${4:1.8f}).build("${5:id}")',
-      },
+        insertText: new SnippetString('FabricItemGroup.builder().icon(${1:Items.DIAMOND}).build()')
+      }
     ];
 
-    // Context-aware completions based on prefix
-    for (const completion of fabricCompletions) {
-      if (
-        completion.label.toLowerCase().includes(prefix.toLowerCase().slice(-10))
-      ) {
-        const item = new vscode.CompletionItem(completion.label);
-        item.kind = completion.kind;
-        item.insertText = new vscode.SnippetString(completion.insertText);
-        item.documentation = new vscode.MarkdownString("Fabric API helper");
+    // EntityType builder
+    const entityCompletions = [
+      {
+        label: 'EntityType.Builder.create',
+        kind: CompletionItemKind.Constructor,
+        insertText: new SnippetString('EntityType.Builder.create(${1:MyEntity}::new, SpawnGroup.${2:CREATURE}).dimensions(${3:0.6f}, ${4:1.8f}).build("${5:id}")')
+      }
+    ];
+
+    // Filter by prefix
+    const allCompletions = [...registryCompletions, ...entityCompletions];
+
+    for (const completion of allCompletions) {
+      if (completion.label.toLowerCase().includes(prefix.slice(-10).toLowerCase())) {
+        // Convert to vscode.CompletionItem for type safety
+        const item = new vscode.CompletionItem(completion.label, completion.kind);
+        item.insertText = completion.insertText;
         completions.push(item);
       }
     }
 
     return completions;
+  }
+
+  private getContextualCompletions(prefix: string): vscode.CompletionItem[] {
+    const completions: vscode.CompletionItem[] = [];
+
+    // Common Fabric classes
+    const fabricClasses = [
+      { label: 'FabricBlockSettings', kind: CompletionItemKind.Class, detail: 'Block settings builder' },
+      { label: 'FabricItemGroup', kind: CompletionItemKind.Class, detail: 'Creative tab builder' },
+      { label: 'EntityType.Builder', kind: CompletionItemKind.Class, detail: 'Entity type builder' }
+    ];
+
+    // Registries
+    const registries = [
+      { label: 'Registries.BLOCK', kind: CompletionItemKind.Field },
+      { label: 'Registries.ITEM', kind: CompletionItemKind.Field },
+      { label: 'Registries.ENTITY_TYPE', kind: CompletionItemKind.Field }
+    ];
+
+    const allItems = [...fabricClasses, ...registries];
+
+    for (const item of allItems) {
+      if (item.label.toLowerCase().includes(prefix.toLowerCase())) {
+        const completion = new vscode.CompletionItem(item.label, item.kind);
+        if ('detail' in item) {
+          completion.detail = (item as { detail: string }).detail;
+        }
+        completion.documentation = new vscode.MarkdownString('Fabric API helper');
+        completions.push(completion);
+      }
+    }
+
+    return completions;
+  }
+
+  resolveCompletionItem?(item: vscode.CompletionItem): vscode.ProviderResult<vscode.CompletionItem> {
+    // Add documentation on resolve
+    if (item.label === 'Registry.register') {
+      item.documentation = new vscode.MarkdownString(
+        '``````'
+      );
+    }
+
+    return item;
   }
 }

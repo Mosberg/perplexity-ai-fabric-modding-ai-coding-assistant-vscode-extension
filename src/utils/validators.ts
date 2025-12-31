@@ -1,38 +1,46 @@
-import type { ValidationResult } from "../types/improved-types";
+import type { ValidationResult } from '../types/improved-types';
 
-/**
- * Comprehensive input validation system
- */
 export class Validators {
   /**
    * Validate Perplexity API key format
    */
   static validateApiKey(key: string): ValidationResult {
-    if (!key) return { valid: false, error: "API key is required" };
-    if (!key.startsWith("pplx-")) {
+    if (!key?.trim()) {
+      return { valid: false, error: 'API key is required' };
+    }
+
+    const trimmed = key.trim();
+    if (!trimmed.startsWith('pplx-')) {
       return { valid: false, error: 'API key must start with "pplx-"' };
     }
-    if (key.length < 20) {
-      return { valid: false, error: "API key too short" };
+
+    if (trimmed.length < 20) {
+      return { valid: false, error: 'API key too short (minimum 20 characters)' };
     }
+
     return { valid: true };
   }
 
   /**
-   * Validate Fabric mod ID
+   * Validate Fabric mod ID (snake_case)
    */
   static validateModId(modId: string): ValidationResult {
-    if (!modId) return { valid: false, error: "Mod ID is required" };
-    if (!/^[a-z0-9_]+$/.test(modId)) {
+    if (!modId?.trim()) {
+      return { valid: false, error: 'Mod ID is required' };
+    }
+
+    const trimmed = modId.trim().toLowerCase();
+    if (!/^[a-z][a-z0-9_]*[a-z0-9]$/.test(trimmed)) {
       return {
         valid: false,
-        error:
-          "Mod ID must contain only lowercase letters, numbers, underscores",
+        error: 'Mod ID must: start/end with letter, lowercase letters/numbers/underscores only'
       };
     }
-    if (modId.length < 3 || modId.length > 64) {
-      return { valid: false, error: "Mod ID must be 3-64 characters" };
+
+    if (trimmed.length < 3 || trimmed.length > 64) {
+      return { valid: false, error: 'Mod ID must be 3-64 characters' };
     }
+
     return { valid: true };
   }
 
@@ -40,58 +48,111 @@ export class Validators {
    * Validate Java class name (PascalCase)
    */
   static validateClassName(className: string): ValidationResult {
-    if (!className) return { valid: false, error: "Class name is required" };
-    if (!/^[A-Z][a-zA-Z0-9]*$/.test(className)) {
+    if (!className?.trim()) {
+      return { valid: false, error: 'Class name is required' };
+    }
+
+    const trimmed = className.trim();
+    if (!/^[A-Z][a-zA-Z0-9]*$/.test(trimmed)) {
       return {
         valid: false,
-        error:
-          "Class name must start with uppercase letter, contain only letters/numbers",
+        error: 'Class name must: start with uppercase, letters/numbers only (PascalCase)'
       };
     }
-    if (className.length < 2 || className.length > 64) {
-      return { valid: false, error: "Class name must be 2-64 characters" };
+
+    if (trimmed.length < 2 || trimmed.length > 64) {
+      return { valid: false, error: 'Class name must be 2-64 characters' };
     }
+
+    // Common Java keywords
+    const keywords = ['class', 'interface', 'enum', 'abstract', 'final', 'static'];
+    if (keywords.includes(trimmed.toLowerCase())) {
+      return { valid: false, error: 'Class name cannot be a Java keyword' };
+    }
+
     return { valid: true };
   }
 
   /**
-   * Validate Java package name
+   * Validate Java package name (reverse domain)
    */
   static validatePackageName(pkg: string): ValidationResult {
-    if (!pkg) return { valid: false, error: "Package name is required" };
-    if (!/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/.test(pkg)) {
+    if (!pkg?.trim()) {
+      return { valid: false, error: 'Package name is required' };
+    }
+
+    const trimmed = pkg.trim();
+    if (!/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/.test(trimmed)) {
       return {
         valid: false,
-        error: "Invalid package format (must be lowercase.domain.name)",
+        error: 'Package must be lowercase reverse domain (com.example.mod)'
       };
     }
+
+    const parts = trimmed.split('.');
+    if (parts.length < 2) {
+      return { valid: false, error: 'Package must have at least 2 segments (com.example)' };
+    }
+
     return { valid: true };
   }
 
   /**
-   * Validate prompt length/content
+   * Validate chat prompt
    */
   static validatePrompt(prompt: string): ValidationResult {
-    if (!prompt) return { valid: false, error: "Prompt is required" };
-    if (prompt.length > 4000) {
-      return { valid: false, error: "Prompt too long (max 4000 chars)" };
+    if (!prompt?.trim()) {
+      return { valid: false, error: 'Prompt cannot be empty' };
     }
-    if (prompt.includes("```")) {
-      return {
-        valid: false,
-        error: "Prompt contains markdown code blocks - use plain text",
-      };
+
+    const trimmed = prompt.trim();
+    if (trimmed.length > 4000) {
+      return { valid: false, error: 'Prompt too long (max 4000 characters)' };
     }
+
+    // Detect multiple code blocks (``` ... ```) in the prompt
+    const codeBlockMatches = trimmed.match(/```[\s\S]*?```/g);
+    if (codeBlockMatches && codeBlockMatches.length > 1) {
+      return { valid: false, error: 'Multiple code blocks detected - use plain text' };
+    }
+
     return { valid: true };
   }
 
   /**
-   * Sanitize user input
+   * Sanitize user input for safe usage
    */
   static sanitizeInput(input: string): string {
+    if (!input) {return '';}
+
     return input
-      .replace(/[<>\"'&]/g, "") // Remove dangerous chars
       .trim()
-      .substring(0, 1000); // Limit length
+      .replace(/[<>"'&]/g, '')           // Remove dangerous chars
+      .replace(/\s+/g, ' ')              // Normalize whitespace
+      .substring(0, 1000);               // Limit length
+  }
+
+  /**
+   * Validate complete Fabric config
+   */
+  static validateFabricConfig(config: any): ValidationResult {
+    const errors = [];
+
+    if (!Validators.validateModId(config.modId).valid) {
+      errors.push('Invalid modId');
+    }
+
+    if (!Validators.validatePackageName(config.packageName).valid) {
+      errors.push('Invalid packageName');
+    }
+
+    if (!/^\d+\.\d+\.\d+$/.test(config.minecraftVersion)) {
+      errors.push('Invalid Minecraft version');
+    }
+
+    return {
+      valid: errors.length === 0,
+      error: errors.length ? errors.join(', ') : undefined
+    };
   }
 }

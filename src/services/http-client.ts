@@ -1,185 +1,120 @@
-import("node-fetch");
-// Use the built-in AbortController from Node.js or the global scope
+import * as vscode from 'vscode';
 
-/**
- * HTTP Client Configuration
- */
-export interface HttpClientConfig {
-  timeout: number;
-  maxRetries: number;
-  retryDelay: number;
-  backoffMultiplier: number;
-}
-
-/**
- * Extended request options
- */
-export interface HttpRequestOptions extends RequestInit {
-  timeout?: number;
-  retries?: number;
-}
-
-/**
- * Production-grade HTTP client singleton with retry logic and streaming
- * Features: retry with exponential backoff, timeouts, streaming, cleanup
- */
 export class HttpClient {
   private static instance: HttpClient;
-  private readonly config: HttpClientConfig;
-  private activeControllers: Map<string, AbortController> = new Map();
+  private readonly defaultTimeout = 30000; // 30s
+  private readonly maxRetries = 3;
 
-  private constructor(config?: Partial<HttpClientConfig>) {
-    this.config = {
-      timeout: config?.timeout ?? 30000,
-      maxRetries: config?.maxRetries ?? 3,
-      retryDelay: config?.retryDelay ?? 1000,
-      backoffMultiplier: config?.backoffMultiplier ?? 2,
-    };
-  }
+  private constructor() {}
 
-  static getInstance(config?: Partial<HttpClientConfig>): HttpClient {
+  static getInstance(): HttpClient {
     if (!HttpClient.instance) {
-      HttpClient.instance = new HttpClient(config);
+      HttpClient.instance = new HttpClient();
     }
     return HttpClient.instance;
   }
 
-  /**
-   * Make HTTP request with automatic retry logic
-   */
-  async request<T = any>(
-    url: string,
-    options: HttpRequestOptions = {}
-  ): Promise<T> {
-    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const timeout = options.timeout ?? this.config.timeout;
-    const maxRetries = options.retries ?? this.config.maxRetries;
+  async request(url: string, options: RequestInit & { retries?: number } = {}): Promise<any> {
+    const { retries = this.maxRetries, ...fetchOptions } = options;
 
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        return await this.executeRequest<T>(url, options, timeout, requestId);
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.defaultTimeout);
 
-        if (this.isClientError(lastError) || attempt === maxRetries) {
-          throw lastError;
+        const response = await fetch(url, {
+          ...fetchOptions,
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        const delay =
-          this.config.retryDelay *
-          Math.pow(this.config.backoffMultiplier, attempt);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        return response.json();
+      } catch (error: any) {
+        if (attempt === retries || error.name === 'AbortError') {
+          throw error;
+        }
+
+        // Exponential backoff
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
 
-    throw lastError ?? new Error("Unknown error after all retries");
+    throw new Error('Max retries exceeded');
   }
 
-  /**
-   * Streaming request using AsyncGenerator
-   */
-  async *streamRequest(
-    url: string,
-    options: HttpRequestOptions = {}
-  ): AsyncGenerator<string, void, unknown> {
-    const requestId = `stream-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}`;
+  // Streaming for chat completions
+  async *streamRequest(url: string, options: RequestInit): AsyncGenerator<string> {
     const controller = new AbortController();
-    this.activeControllers.set(requestId, controller);
-
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      options.timeout ?? this.config.timeout
-    );
 
     try {
       const response = await fetch(url, {
         ...options,
-        signal: controller.signal,
+        headers: {
+          ...options.headers,
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache'
+        },
+        signal: controller.signal
       });
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      if (!response.body) {
-        throw new Error("No response body");
+      if (!response.ok || !response.body) {
+        throw new Error(`Stream failed: ${response.status}`);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
-          }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {break;}
 
-          const chunk = decoder.decode(value, { stream: true });
-          yield chunk;
-        }
-      } finally {
-        reader.releaseLock();
+        const chunk = decoder.decode(value);
+        yield chunk;
       }
-    } finally {
-      clearTimeout(timeoutId);
-      this.activeControllers.delete(requestId);
+    } catch (error) {
+      controller.abort();
+      throw error;
     }
   }
 
-  /**
-   * Abort all active requests
-   */
-  abortAll(): void {
-    this.activeControllers.forEach((controller) => controller.abort());
-    this.activeControllers.clear();
+  // Perplexity API helper
+  async chatCompletion(messages: Array<{role: string, content: string}>, model = 'llama-3.1-sonar-small-128k-online'): Promise<string> {
+    const apiKey = await this.getApiKey();
+
+    const response = await this.request('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.1,
+        stream: false
+      })
+    });
+
+    return response.choices[0].message.content;
   }
 
-  /**
-   * Cleanup resources
-   */
-  dispose(): void {
-    this.abortAll();
-  }
+  // Secure API key retrieval
+  private async getApiKey(): Promise<string> {
+    // In real implementation, use context.secrets.get('perplexity-api-key')
+    // For now, fallback to config
+    const config = vscode.workspace.getConfiguration('fabric');
+    const apiKey = config.get('perplexityApiKey') as string;
 
-  private async executeRequest<T>(
-    url: string,
-    options: HttpRequestOptions,
-    timeout: number,
-    requestId: string
-  ): Promise<T> {
-    const controller = new AbortController();
-    this.activeControllers.set(requestId, controller);
-
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        throw new Error(`HTTP ${response.status}: ${errorText.slice(0, 200)}`);
-      }
-
-      return (await response.json()) as T;
-    } finally {
-      clearTimeout(timeoutId);
-      this.activeControllers.delete(requestId);
+    if (!apiKey || !apiKey.startsWith('pplx-')) {
+      throw new Error('Perplexity API key not configured. Run "Fabric AI: Set API Key"');
     }
-  }
 
-  private isClientError(error: Error): boolean {
-    return /^HTTP 4\d{2}/.test(error.message);
+    return apiKey;
   }
 }

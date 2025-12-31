@@ -1,104 +1,217 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseGenerator = void 0;
-const vscode = __importStar(require("vscode"));
 const validators_1 = require("../utils/validators");
-/**
- * Abstract base class for all Fabric code generators
- * Provides shared functionality: validation, templating, Fabric config
- */
 class BaseGenerator {
-    constructor(context) {
+    constructor(context, config) {
         this.context = context;
+        this.config = config;
     }
     /**
-     * Validate generator input
+     * Validate generator input (STRICT)
      */
     validateName(name, type) {
-        const validation = validators_1.Validators.validateClassName(name);
+        const validation = this.getValidationForType(type)(name);
         if (!validation.valid) {
-            throw new Error(`Invalid ${type} name "${name}": ${validation.error}`);
+            const error = new Error(`Invalid ${type} name "${name}": ${validation.error}`);
+            throw error;
         }
     }
     /**
-     * Get current Fabric configuration
+     * Get Fabric identifier
      */
-    getFabricConfig() {
-        const config = vscode.workspace.getConfiguration("fabric");
+    modId(name) {
+        return `Identifier.of("${this.config.modId}", "${name.toLowerCase()}")`;
+    }
+    /**
+     * Get Java package for type
+     */
+    getPackage(type) {
+        const packages = {
+            entity: 'dk.mosberg.entity',
+            block: 'dk.mosberg.block',
+            item: 'dk.mosberg.item',
+            command: 'dk.mosberg.command',
+            renderer: 'dk.mosberg.client.render',
+            screen: 'dk.mosberg.client.screen',
+            overlay: 'dk.mosberg.client.overlay',
+            config: 'dk.mosberg.config',
+            mixin: 'dk.mosberg.mixin'
+        };
+        return packages[type] || this.config.packageName;
+    }
+    /**
+     * Standard Fabric imports (1.21.10)
+     */
+    getFabricImports(type) {
+        const commonImports = [
+            'import net.minecraft.util.Identifier;',
+            'import net.minecraft.registry.Registries;',
+            'import net.minecraft.registry.Registry;',
+            'import net.fabricmc.api.ModInitializer;',
+            `import ${this.config.packageName}.Mana;`
+        ];
+        const typeImports = {
+            entity: [
+                'import net.minecraft.entity.EntityType;',
+                'import net.minecraft.entity.LivingEntity;',
+                'import net.minecraft.entity.SpawnGroup;',
+                'import net.minecraft.entity.ai.goal.MeleeAttackGoal;',
+                'import net.minecraft.entity.ai.goal.WanderAroundFarGoal;',
+                'import net.minecraft.entity.ai.goal.LookAroundGoal;',
+                'import net.minecraft.entity.attribute.DefaultAttributeContainer;',
+                'import net.minecraft.entity.attribute.EntityAttributes;',
+                'import net.minecraft.entity.damage.DamageSource;',
+                'import net.minecraft.entity.player.PlayerEntity;',
+                'import net.minecraft.world.World;',
+                'import net.minecraft.sound.SoundEvent;',
+                'import net.minecraft.util.Identifier;',
+                'import net.minecraft.registry.Registries;',
+                'import net.minecraft.registry.Registry;'
+            ],
+            block: [
+                'import net.minecraft.block.Block;',
+                'import net.minecraft.block.BlockState;',
+                'import net.minecraft.block.Material;',
+                'import net.minecraft.block.ShapeContext;',
+                'import net.minecraft.item.BlockItem;',
+                'import net.minecraft.item.Item;',
+                'import net.minecraft.item.ItemGroup;',
+                'import net.minecraft.sound.BlockSoundGroup;',
+                'import net.minecraft.util.math.BlockPos;',
+                'import net.minecraft.util.shape.VoxelShape;',
+                'import net.minecraft.util.shape.VoxelShapes;',
+                'import net.minecraft.world.BlockView;',
+                'import net.minecraft.registry.Registries;',
+                'import net.minecraft.registry.Registry;',
+                'import net.minecraft.util.Identifier;'
+            ],
+            item: [
+                'import net.minecraft.item.Item;',
+                'import net.minecraft.item.ItemGroup;',
+                'import net.minecraft.item.ItemStack;',
+                'import net.minecraft.client.item.TooltipContext;',
+                'import net.minecraft.text.Text;',
+                'import net.minecraft.world.World;',
+                'import net.minecraft.registry.Registries;',
+                'import net.minecraft.registry.Registry;',
+                'import net.minecraft.util.Identifier;'
+            ],
+            command: [
+                'import com.mojang.brigadier.CommandDispatcher;',
+                'import com.mojang.brigadier.arguments.IntegerArgumentType;',
+                'import com.mojang.brigadier.context.CommandContext;',
+                'import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;',
+                'import net.minecraft.server.command.CommandManager;',
+                'import net.minecraft.server.command.ServerCommandSource;',
+                'import net.minecraft.server.network.ServerPlayerEntity;',
+                'import net.minecraft.text.Text;'
+            ],
+            renderer: [
+                'import net.fabricmc.api.EnvType;',
+                'import net.fabricmc.api.Environment;',
+                'import net.minecraft.client.render.VertexConsumerProvider;',
+                'import net.minecraft.client.render.entity.EntityRendererFactory;',
+                'import net.minecraft.client.render.entity.LivingEntityRenderer;',
+                'import net.minecraft.client.util.math.MatrixStack;',
+                'import net.minecraft.util.Identifier;'
+            ],
+            screen: [
+                'import net.minecraft.client.gui.screen.ingame.HandledScreens;',
+                'import net.minecraft.client.gui.screen.ingame.HandledScreen;',
+                'import net.minecraft.entity.player.PlayerInventory;',
+                'import net.minecraft.text.Text;',
+                'import net.minecraft.screen.ScreenHandler;',
+                'import net.minecraft.screen.slot.Slot;',
+                'import net.minecraft.util.Identifier;',
+                'import net.fabricmc.api.EnvType;',
+                'import net.fabricmc.api.Environment;'
+            ],
+            overlay: [
+                'import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;',
+                'import net.minecraft.client.MinecraftClient;',
+                'import net.minecraft.client.gui.DrawContext;',
+                'import net.minecraft.client.util.math.MatrixStack;',
+                'import net.minecraft.text.Text;',
+                'import net.minecraft.util.math.MathHelper;',
+                'import net.fabricmc.api.EnvType;',
+                'import net.fabricmc.api.Environment;'
+            ],
+            config: [
+                'import me.shedaniel.autoconfig.ConfigData;',
+                'import me.shedaniel.autoconfig.annotation.ConfigEntry.Gui.RequiresRestart;',
+                'import me.shedaniel.autoconfig.annotation.ConfigName;',
+                'import me.shedaniel.autoconfig.annotation.ConfigEntry.Gui.TransitiveObject;',
+                'import me.shedaniel.cloth.clothconfig.shadowed.blue.endless.jankson.Comment;'
+            ],
+            mixin: [
+                'import org.slf4j.Logger;',
+                'import org.slf4j.LoggerFactory;',
+                'import org.spongepowered.asm.mixin.Mixin;',
+                'import org.spongepowered.asm.mixin.injection.At;',
+                'import org.spongepowered.asm.mixin.injection.Inject;',
+                'import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;',
+                'import net.minecraft.entity.player.PlayerEntity;',
+                'import net.minecraft.text.Text;',
+            ]
+        };
+        return [...commonImports, ...(typeImports[type] || [])];
+    }
+    /**
+     * Generate Java class header
+     */
+    javaClassHeader(pkg, className, type, extraImports = []) {
+        const imports = [...this.getFabricImports(type), ...extraImports];
+        return `package ${pkg};
+
+${imports.map(i => `  ${i}`).join('\n')}
+
+public class ${className} {
+  private static final Logger LOGGER = LoggerFactory.getLogger(${this.config.modId.toUpperCase()});
+
+  // Registry field
+  public static final ${this.getRegistryType(type).toUpperCase()} ${className.toUpperCase()} =
+    Registry.register(
+      Registries.${this.getRegistryType(type)},
+      ${this.modId(className)},
+      new ${className}()
+    );
+`;
+    }
+    getValidationForType(type) {
+        return type === 'command'
+            ? validators_1.Validators.validateModId
+            : validators_1.Validators.validateClassName;
+    }
+    getRegistryType(type) {
+        const registryMap = {
+            entity: 'entity_type',
+            block: 'block',
+            item: 'item',
+            command: 'command',
+            renderer: 'entity_renderer',
+            screen: 'screen_handler',
+            overlay: 'hud_overlay',
+            config: 'config',
+            mixin: 'mixin'
+        };
+        return registryMap[type] || type;
+    }
+    /**
+     * Generate complete GenerationResult
+     */
+    createResult(code, name) {
         return {
-            minecraftVersion: config.get("minecraftVersion", "1.21.10"),
-            fabricApiVersion: config.get("fabricApiVersion", "0.138.4+1.21.10"),
-            modId: config.get("modId", "mana"),
-            packageName: config.get("packageName", "dk.mosberg"),
+            success: true,
+            content: code,
+            filePath: `src/main/java/${this.config.packageName.replace(/\./g, '/')}/${name}.java`
         };
     }
     /**
-     * Generate standard Fabric imports
+     * Log generation stats
      */
-    getFabricImports() {
-        return [
-            `import net.fabricmc.api.ModInitializer;`,
-            `import net.fabricmc.fabric.api.item.v1.FabricItemGroup;`,
-            `import net.minecraft.registry.Registries;`,
-            `import net.minecraft.registry.Registry;`,
-            `import net.minecraft.util.Identifier;`,
-            `import org.slf4j.Logger;`,
-            `import org.slf4j.LoggerFactory;`,
-        ];
-    }
-    /**
-     * Generate mod identifier
-     */
-    modId(name) {
-        // Identifier is not defined; fallback to string format
-        const modId = this.getFabricConfig().modId;
-        return `${modId}:${name.toLowerCase()}`;
-    }
-    /**
-     * Format Java class header
-     */
-    javaClassHeader(packageName, className, modId, imports = []) {
-        return `package ${packageName};
-
-${imports.join("\n")}
-
-public class ${className} {
-  public static final String MOD_ID = "${modId}";
-  private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-`;
+    logGeneration(type, name, lines) {
+        console.log(`✅ Generated ${type}: ${name} (${lines} lines)`);
     }
 }
 exports.BaseGenerator = BaseGenerator;

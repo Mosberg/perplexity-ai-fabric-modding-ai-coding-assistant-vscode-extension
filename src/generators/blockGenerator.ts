@@ -1,51 +1,59 @@
-import { BaseGenerator } from "./baseGenerator";
+import { BaseGenerator } from './baseGenerator';
 
 export class BlockGenerator extends BaseGenerator {
   async generate(name: string): Promise<string> {
-    this.validateName(name, "block");
+    this.validateName(name, 'block');
 
-    const config = this.getFabricConfig();
-    const blockName = name;
-    const blockId = blockName.toLowerCase();
+    const pkg = this.getPackage('block');
+    const blockId = name.toLowerCase();
 
-    return `package ${config.packageName}.block;
+    const code = `package ${pkg};
 
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
-import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Material;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroups;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
-import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.util.Identifier;
 
-public class ${blockName}Block extends Block {
-  public static final Block BLOCK = Registry.register(
-    Registries.BLOCK,
-    new Identifier("${config.modId}", "${blockId}"),
-    new ${blockName}Block(FabricBlockSettings.create()
-      .strength(3.0f, 9.0f)
-      .sounds(BlockSoundGroup.STONE)
-      .material(Material.STONE))
-  );
+public class ${name}Block extends Block {
+  public static final ${name}Block INSTANCE =
+    Registry.register(
+      Registries.BLOCK,
+      ${this.modId(blockId)},
+      new ${name}Block(FabricBlockSettings.create())
+    );
 
-  public static final Item BLOCK_ITEM = Registry.register(
+  public static final Item ITEM = Registry.register(
     Registries.ITEM,
-    new Identifier("${config.modId}", "${blockId}"),
-    new BlockItem(BLOCK, new Item.Settings())
+    ${this.modId(blockId)},
+    new BlockItem(INSTANCE, new Item.Settings().groups(ItemGroup.BUILDING_BLOCKS))
   );
 
-  public ${blockName}Block(Settings settings) {
-    super(settings);
+  public ${name}Block(Settings settings) {
+    super(settings
+      .material(Material.STONE)
+      .strength(3.0f, 9.0f)
+      .sounds(BlockSoundGroup.STONE));
   }
 
-  public static void register() {
-    ItemGroupEvents.modifyEntriesEvent(ItemGroups.BUILDING_BLOCKS)
-      .register(content -> content.add(BLOCK_ITEM));
+  @Override
+  public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+    return VoxelShapes.cuboid(0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
   }
-}`;
+}
+`;
+
+    this.logGeneration('block', name, code.split('\n').length);
+    return code;
   }
 }

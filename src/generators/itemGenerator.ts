@@ -1,40 +1,58 @@
-import { BaseGenerator } from "./baseGenerator";
+import { BaseGenerator } from './baseGenerator';
 
 export class ItemGenerator extends BaseGenerator {
   async generate(name: string): Promise<string> {
-    this.validateName(name, "item");
+    this.validateName(name, 'item');
 
-    const config = this.getFabricConfig();
-    const itemName = name;
-    const itemId = itemName.toLowerCase();
+    const pkg = this.getPackage('item');
+    const itemId = name.toLowerCase();
 
-    return `package ${config.packageName}.item;
+    const code = `package ${pkg};
 
-import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroups;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemStack;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.text.Text;
+import net.minecraft.world.World;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
-public class ${itemName}Item extends Item {
-  public static final Item ITEM = Registry.register(
-    Registries.ITEM,
-    new Identifier("${config.modId}", "${itemId}"),
-    new ${itemName}Item(new Item.Settings()
-      .maxCount(64)
-      .fireproof())
-  );
+public class ${name} extends Item {
+  public static final ${name} INSTANCE =
+    Registry.register(
+      Registries.ITEM,
+      ${this.modId(itemId)},
+      new ${name}(new Item.Settings()
+        .group(ItemGroup.MISC)
+        .maxCount(64)
+      )
+    );
 
-  public ${itemName}Item(Settings settings) {
+  public ${name}(Settings settings) {
     super(settings);
   }
 
-  public static void register() {
-    ItemGroupEvents.modifyEntriesEvent(ItemGroups.INGREDIENTS)
-      .register(content -> content.addAfter(Items.IRON_INGOT, ITEM));
+  @Override
+  public void appendTooltip(ItemStack stack, World world, List<Text> tooltip, TooltipContext context) {
+    tooltip.add(Text.literal("§6Custom ${name.toLowerCase()}"));
+    tooltip.add(Text.literal("§7Right-click for special effect"));
+    super.appendTooltip(stack, world, tooltip, context);
   }
-}`;
+
+  // Uncomment for custom use behavior
+  /*
+  @Override
+  public ActionResult useOnBlock(ItemUsageContext context) {
+    // Custom block interaction
+    return ActionResult.SUCCESS;
+  }
+  */
+}
+`;
+
+    this.logGeneration('item', name, code.split('\n').length);
+    return code;
   }
 }

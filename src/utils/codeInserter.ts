@@ -1,66 +1,126 @@
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as vscode from "vscode";
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as vscode from 'vscode';
+import { FabricConfigManager } from './fabricConfig';
+import { TemplateManager } from './templateManager';
 
-/**
- * Smart code insertion and file creation
- */
 export class CodeInserter {
-  private static readonly ENCODING = "utf8";
+  private static readonly ENCODING = 'utf-8';
 
   /**
-   * Insert code at cursor or create new file
+   * Insert code at cursor or create new untitled document
    */
   static async insertCode(code: string): Promise<void> {
     const editor = vscode.window.activeTextEditor;
 
-    if (editor) {
-      // Insert at cursor
-      await editor.edit((builder) => {
-        builder.insert(editor.selection.active, code + "\n\n");
+    if (editor && editor.document.languageId === 'java') {
+      // Insert at cursor in Java file
+      const position = editor.selection.active;
+      await editor.edit(builder => {
+        builder.insert(position, code + '\n\n');
       });
-      await vscode.commands.executeCommand("editor.action.formatDocument");
+
+      // Auto-format
+      await vscode.commands.executeCommand('editor.action.formatDocument');
+      vscode.window.showInformationMessage('✅ Code inserted and formatted!');
+
     } else {
-      // Create new untitled document
-      await this.createUntitledDocument(code);
+      // Create new Java document
+      const document = await vscode.workspace.openTextDocument({
+        language: 'java',
+        content: code
+      });
+      await vscode.window.showTextDocument(document, { preview: false });
     }
   }
 
   /**
-   * Create file at specific path
+   * Create file at specific workspace path
    */
-  static async createFile(uri: vscode.Uri, content: string): Promise<void> {
+  static async createFile(workspaceFolder: vscode.WorkspaceFolder, relativePath: string, content: string): Promise<void> {
     try {
+      const uri = vscode.Uri.joinPath(workspaceFolder.uri, relativePath);
       const dirPath = path.dirname(uri.fsPath);
+
+      // Create directories
       await fs.mkdir(dirPath, { recursive: true });
+
+      // Write file
       await fs.writeFile(uri.fsPath, content, this.ENCODING);
 
-      const doc = await vscode.workspace.openTextDocument(uri);
-      await vscode.window.showTextDocument(doc, { preview: false });
+      // Open in editor
+      const document = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(document, { preview: false });
+
+      vscode.window.showInformationMessage(`✅ Created: ${relativePath}`);
+
     } catch (error) {
-      throw new Error(`Failed to create file: ${error}`);
+      const err = error as NodeJS.ErrnoException;
+      throw new Error(`Failed to create ${relativePath}: ${err.message}`);
     }
   }
 
-  private static async createUntitledDocument(code: string): Promise<void> {
-    const language = this.detectLanguage(code);
-    const doc = await vscode.workspace.openTextDocument({
-      content: code,
-      language,
-    });
-    await vscode.window.showTextDocument(doc);
+  /**
+   * Create complete Fabric mod project structure
+   */
+  static async createModProject(
+    workspaceFolder: vscode.WorkspaceFolder,
+    modId: string,
+    modName: string
+  ): Promise<void> {
+    const config = FabricConfigManager.getConfig();
+
+    // Core files
+    const files = [
+      {
+        path: `src/main/java/${config.packageName.replace(/\./g, '/')}/ModInitializer.java`,
+        content: TemplateManager.getModInitializer(modId, config.packageName)
+      },
+      {
+        path: 'gradle.properties',
+        content: TemplateManager.getGradleProperties(config)
+      },
+      {
+        path: 'build.gradle',
+        content: TemplateManager.getBuildGradle(config)
+      },
+      {
+        path: 'src/main/resources/fabric.mod.json',
+        content: TemplateManager.getFabricModJson(modId, modName)
+      },
+      {
+        path: 'src/main/resources/META-INF/mods.toml',
+        content: TemplateManager.getModsToml(modId, modName)
+      }
+    ];
+
+    // Create all files
+    for (const file of files) {
+      if (typeof file.content === 'string') {
+        await this.createFile(workspaceFolder, file.path, file.content);
+      } else {
+        throw new Error(`File content for ${file.path} is not a string.`);
+      }
+    }
+
+    vscode.window.showInformationMessage(`✅ Fabric mod "${modId}" created! Run ./gradlew genSources`);
   }
 
-  private static detectLanguage(code: string): string {
-    if (/public\s+(class|interface|enum|record)/.test(code)) {
-      return "java";
+
+  /**
+   * Insert code block with proper formatting
+   */
+  static async insertFormatted(code: string, title: string): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+
+    if (editor) {
+      const position = editor.selection.active;
+      const snippet = new vscode.SnippetString(code + '\n\n');
+
+      await editor.insertSnippet(snippet, position);
+      await vscode.commands.executeCommand('editor.action.formatSelection');
+
+      vscode.window.showInformationMessage(`✅ ${title} inserted!`);
     }
-    if (/fun\s+\w+/.test(code)) {
-      return "kotlin";
-    }
-    if (/^\s*\{/.test(code.trim())) {
-      return "json";
-    }
-    return "java"; // Default for Fabric
   }
 }

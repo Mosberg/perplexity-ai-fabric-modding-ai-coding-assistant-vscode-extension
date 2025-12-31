@@ -1,119 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fabric AI Assistant</title>
   <link rel="stylesheet" href="./fabric-agent.css">
 </head>
-
 <body>
   <!-- Header -->
-  <div class="fabric-header">
-    <div class="header-title">
-      🤖 <span>Fabric AI</span>
-      <span class="version">v1.0</span>
+  <div class="header">
+    <div class="header-left">
+      <div class="status-indicator" id="statusIndicator"></div>
+      <h1>Fabric AI Assistant</h1>
+      <span class="version">v2.0</span>
     </div>
-    <div class="header-status">
-      <span id="status-indicator" class="status-online"></span>
-      <span id="api-status">Ready</span>
+    <div class="header-right">
+      <button class="api-status" id="apiStatus">🔑 API Key</button>
     </div>
   </div>
 
   <!-- Tabs -->
-  <div class="fabric-tabs" id="tabs">
-    <button class="tab active" data-tab="main">🏠 Home</button>
-    <button class="tab" data-tab="chat" id="chat-tab">💬 Chat</button>
-    <button id="new-chat-btn" title="New Chat">+</button>
+  <div class="tabs">
+    <button class="tab active" data-tab="home">🏠 Home</button>
+    <button class="tab" data-tab="chat">💬 Chat</button>
+    <button class="tab" data-tab="config">⚙️ Config</button>
   </div>
 
-  <!-- Content Wrapper -->
-  <div class="content-wrapper">
-    <!-- Main Tab: Quick Actions -->
-    <div id="main-content" class="tab-content active">
-      <!-- Fabric Info -->
+  <!-- Home Tab: Quick Actions -->
+  <div id="home-tab" class="tab-content active">
+    <div class="section">
+      <h3>🎮 Fabric 1.21.10 Setup</h3>
       <div class="fabric-info">
-        <strong>🎮 Fabric 1.21.10 Setup</strong><br>
-        Loader: <code>0.18.4</code> | API: <code>0.138.4</code> | Java: <code>21</code>
-      </div>
-
-      <!-- Quick Actions Grid -->
-      <div class="quick-actions">
-        <div class="section-title">🚀 Mod Setup</div>
-        <div class="button-grid">
-          <button class="action-btn btn-setup" onclick="generateMod()">
-            🆕 New Mod
-          </button>
-        </div>
-
-        <div class="section-title">🧱 Game Elements</div>
-        <div class="button-grid">
-          <button class="action-btn btn-entity" onclick="generateEntity()">👹 Entity</button>
-          <button class="action-btn btn-block" onclick="generateBlock()">🧱 Block</button>
-          <button class="action-btn btn-item" onclick="generateItem()">📦 Item</button>
-          <button class="action-btn btn-command" onclick="generateCommand()">⚡ Command</button>
-        </div>
-
-        <div class="section-title">🎨 Client-Side</div>
-        <div class="button-grid">
-          <button class="action-btn btn-renderer" onclick="generateRenderer()">🖼️ Renderer</button>
-          <button class="action-btn btn-screen" onclick="generateScreen()">📱 Screen</button>
-          <button class="action-btn btn-overlay" onclick="generateOverlay()">📊 HUD</button>
-        </div>
-
-        <div class="section-title">⚙️ Advanced</div>
-        <div class="button-grid">
-          <button class="action-btn btn-config" onclick="generateConfig()">⚙️ Config</button>
-          <button class="action-btn btn-mixin" onclick="generateMixin()">🔧 Mixin</button>
-        </div>
+        <span>Mod ID: <code id="modId">mana</code></span>
+        <span>Package: <code id="package">dk.mosberg</code></span>
+        <span>MC: <code id="mcVersion">1.21.10</code></span>
       </div>
     </div>
 
-    <!-- Chat Tab -->
-    <div id="chat-content" class="tab-content">
-      <!-- Controls -->
-      <div class="controls-bar">
-        <div class="control-group">
-          <select id="provider-select">
-            <option value="perplexity">Perplexity Pro</option>
-            <option value="deepseek">DeepSeek</option>
-          </select>
-          <select id="model-select">
-            <option value="sonar-pro">Sonar Pro (Fast)</option>
-            <option value="sonar-research">Sonar Research</option>
-          </select>
-        </div>
-        <div class="control-group">
-          <button class="btn-small" id="mode-toggle">Chat Mode</button>
-          <button class="btn-small" id="clear-history">Clear</button>
-        </div>
+    <div class="section">
+      <h3>🚀 Quick Actions</h3>
+      <div class="action-grid">
+        <button class="action-btn primary" data-action="generateEntity" title="Custom mobs with AI">
+          <span class="icon">👹</span> Entity
+        </button>
+        <button class="action-btn primary" data-action="generateBlock" title="Blocks + auto-items">
+          <span class="icon">🧱</span> Block
+        </button>
+        <button class="action-btn primary" data-action="generateItem" title="Items + tooltips">
+          <span class="icon">📦</span> Item
+        </button>
+        <button class="action-btn secondary" data-action="generateCommand" title="Brigadier commands">
+          <span class="icon">⚡</span> Command
+        </button>
+        <button class="action-btn secondary" data-action="generateRenderer" title="Client entity renderers">
+          <span class="icon">🖼️</span> Renderer
+        </button>
+        <button class="action-btn secondary" data-action="generateScreen" title="GUI screens">
+          <span class="icon">📱</span> Screen
+        </button>
+        <button class="action-btn accent" data-action="generateOverlay" title="HUD overlays">
+          <span class="icon">📊</span> HUD
+        </button>
+        <button class="action-btn accent" data-action="generateConfig" title="Cloth Config">
+          <span class="icon">⚙️</span> Config
+        </button>
+        <button class="action-btn danger" data-action="generateMixin" title="Advanced mixins">
+          <span class="icon">🔧</span> Mixin
+        </button>
       </div>
+    </div>
+  </div>
 
-      <!-- Messages -->
-      <div class="messages-container" id="messages">
-        <div class="empty-state">
-          <div class="empty-state-icon">🤖</div>
-          <div class="empty-state-title">Start a Conversation</div>
-          <div class="empty-state-description">
-            Ask about Fabric modding, generate code, or use quick actions above!
+  <!-- Chat Tab -->
+  <div id="chat-tab" class="tab-content">
+    <div class="chat-container">
+      <div class="messages" id="messages">
+        <div class="welcome-message">
+          <div class="avatar">🤖</div>
+          <div class="message-content">
+            <strong>Fabric AI</strong> is ready! Ask about Fabric modding, generate code, or explain APIs.
           </div>
         </div>
       </div>
-
-      <!-- Input -->
-      <div class="input-container">
-        <textarea id="message-input" rows="1"
-          placeholder="Ask about Fabric modding, entities, blocks, mixins... or describe what you want to create"></textarea>
-        <button id="send-btn">Send</button>
+      <div class="chat-input-container">
+        <input type="text" id="chatInput" placeholder="Ask about Fabric 1.21.10, Java 21, modding..." maxlength="2000">
+        <button id="sendButton" disabled>Send</button>
       </div>
     </div>
   </div>
 
-  <!-- Status Bar -->
-  <div class="status-bar" id="status-bar"></div>
+  <!-- Config Tab -->
+  <div id="config-tab" class="tab-content">
+    <div class="config-section">
+      <h3>⚙️ Extension Settings</h3>
+      <div class="config-grid">
+        <label>Mod ID: <input id="configModId" value="mana"></label>
+        <label>Package: <input id="configPackage" value="dk.mosberg"></label>
+        <button id="saveConfig">Save Config</button>
+      </div>
+    </div>
+  </div>
 
   <script src="./fabric-agent.js"></script>
 </body>
-
 </html>

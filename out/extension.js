@@ -37,41 +37,51 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const fabricAgent_1 = require("./fabricAgent");
+const http_client_1 = require("./services/http-client");
+const error_handler_1 = require("./utils/error-handler");
 const fabricConfig_1 = require("./utils/fabricConfig");
 function activate(context) {
-    console.log("🎮 Ultimate Fabric AI ACTIVATED!");
-    // Config
-    const config = fabricConfig_1.FabricConfigManager.getConfig();
-    // Output channel for error logging
-    const outputChannel = vscode.window.createOutputChannel("Fabric AI");
-    // Core agent
-    const agent = new fabricAgent_1.FabricAgent(context, outputChannel);
-    // Register ALL providers
+    console.log('🎮 Perplexity Fabric AI v2.0 ACTIVATED!');
+    // Initialize core services
+    const output = vscode.window.createOutputChannel('Fabric AI', { log: true });
+    // const httpClient = new HttpClient();
+    const httpClient = http_client_1.HttpClient.getInstance();
+    const errorHandler = new error_handler_1.ErrorHandler(output);
+    // Master agent with ALL dependencies
+    const agent = new fabricAgent_1.FabricAgent(context, httpClient, errorHandler, output, fabricConfig_1.FabricConfigManager.getConfig());
+    // Register LSP Providers
     const providers = [
-        vscode.languages.registerCompletionItemProvider(["java", "json", "gradle"], agent.getCompletionProvider()),
-        vscode.languages.registerHoverProvider(["java", "json", "gradle"], agent.getHoverProvider()),
-        // Webview sidebar
-        vscode.window.registerWebviewViewProvider("fabric.agent", agent.getWebviewProvider()),
-        // ALL Commands (Fabric + Copilot)
-        vscode.commands.registerCommand("fabric.setApiKey", () => agent.setApiKey()),
-        vscode.commands.registerCommand("fabric.newMod", () => agent.generateModProject()),
-        vscode.commands.registerCommand("fabric.generateEntity", () => agent.generateEntity()),
-        vscode.commands.registerCommand("fabric.generateBlock", () => agent.generateBlock()),
-        vscode.commands.registerCommand("fabric.generateItem", () => agent.generateItem()),
-        vscode.commands.registerCommand("fabric.generateCommand", () => agent.generateCommand()),
-        vscode.commands.registerCommand("fabric.generateRenderer", () => agent.generateRenderer()),
-        vscode.commands.registerCommand("fabric.generateScreen", () => agent.generateScreen()),
-        vscode.commands.registerCommand("fabric.generateOverlay", () => agent.generateOverlay()),
-        vscode.commands.registerCommand("fabric.generateConfig", () => agent.generateConfig()),
-        vscode.commands.registerCommand("fabric.generateMixin", () => agent.generateMixin()),
-        // Copilot commands (from perplexity-ai-copilot)
-        vscode.commands.registerCommand("copilot.chat", () => agent.openCopilotChat()),
-        vscode.commands.registerCommand("copilot.explain", () => agent.explainCode()),
-        vscode.commands.registerCommand("copilot.generate", () => agent.generateCode()),
+        // Code Completions (Java/JSON/Gradle)
+        vscode.languages.registerCompletionItemProvider(['java', 'json', 'gradle', 'properties'], agent.getCompletionProvider(), '.', '(', ','),
+        // Hover Documentation
+        vscode.languages.registerHoverProvider(['java', 'json', 'gradle', 'properties'], agent.getHoverProvider()),
+        // Webview Sidebar
+        vscode.window.registerWebviewViewProvider('fabric.agent', agent.getWebviewProvider())
     ];
-    context.subscriptions.push(...providers);
+    // Register ALL Commands
+    const commands = [
+        vscode.commands.registerCommand('fabric.setApiKey', () => agent.setApiKey()),
+        vscode.commands.registerCommand('fabric.newMod', () => agent.generateModProject()),
+        vscode.commands.registerCommand('fabric.generateEntity', () => agent.generateEntity()),
+        vscode.commands.registerCommand('fabric.generateBlock', () => agent.generateBlock()),
+        vscode.commands.registerCommand('fabric.generateItem', () => agent.generateItem()),
+        vscode.commands.registerCommand('fabric.generateCommand', () => agent.generateCommand()),
+        vscode.commands.registerCommand('fabric.generateRenderer', () => agent.generateRenderer()),
+        vscode.commands.registerCommand('fabric.generateScreen', () => agent.generateScreen()),
+        vscode.commands.registerCommand('fabric.generateOverlay', () => agent.generateOverlay()),
+        vscode.commands.registerCommand('fabric.generateConfig', () => agent.generateConfig()),
+        vscode.commands.registerCommand('fabric.generateMixin', () => agent.generateMixin()),
+        vscode.commands.registerCommand('fabric.showLogs', () => output.show())
+    ];
+    // Add to context
+    context.subscriptions.push(...providers, ...commands);
     // Welcome message
-    vscode.window.showInformationMessage("🤖 Ultimate Fabric AI Ready! Open sidebar or Ctrl+Shift+P → Fabric AI");
+    vscode.window.showInformationMessage('🤖 Fabric AI Ready! Open sidebar or Ctrl+Shift+P → "Fabric AI: Generate Entity"');
+    output.appendLine('✅ All providers registered');
+    output.appendLine('✅ 12 commands registered');
+    output.appendLine('✅ Ready for Fabric modding!');
 }
-function deactivate() { }
+function deactivate() {
+    console.log('🛑 Fabric AI deactivated');
+}
 //# sourceMappingURL=extension.js.map

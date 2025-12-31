@@ -35,86 +35,98 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ErrorHandler = void 0;
 const vscode = __importStar(require("vscode"));
-/**
- * Unified error handling with user-friendly dialogs and logging
- */
 class ErrorHandler {
     constructor(output) {
         this.output = output;
     }
-    /**
-     * Handle any error with categorization and user feedback
-     */
     handleError(error) {
         const err = error instanceof Error ? error : new Error(String(error));
+        // Log to output channel
         this.logError(err);
-        const category = this.getErrorCategory(err);
+        // Categorize and show user-friendly message
+        const category = this.categorizeError(err);
         const userMessage = this.getUserMessage(err, category);
-        const actions = this.getErrorActions(category);
-        vscode.window
-            .showErrorMessage(userMessage, ...actions)
-            .then((selection) => {
-            this.handleAction(selection, err);
+        const actions = this.getQuickFixActions(category);
+        vscode.window.showErrorMessage(userMessage, ...actions).then(action => {
+            this.handleQuickFix(action, err);
         });
     }
     logError(error) {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toISOString();
         this.output.appendLine(`[${timestamp}] ❌ ${error.name}: ${error.message}`);
         if (error.stack) {
-            this.output.appendLine(`  Stack: ${error.stack.slice(0, 500)}`);
+            this.output.appendLine(`   Stack: ${error.stack.slice(0, 500)}...`);
         }
         this.output.show(true);
     }
-    getErrorCategory(error) {
-        if (error.message.includes("HTTP 4")) {
-            return "ClientError";
+    categorizeError(error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('http 4')) {
+            return 'ClientError';
         }
-        if (error.message.includes("HTTP 5")) {
-            return "ServerError";
+        if (msg.includes('http 5')) {
+            return 'ServerError';
         }
-        if (error.name === "ValidationError") {
-            return "ValidationError";
+        if (msg.includes('api key') || msg.includes('pplx-')) {
+            return 'AuthError';
         }
-        if (error.message.includes("API key")) {
-            return "AuthError";
+        if (msg.includes('timeout') || msg.includes('abort')) {
+            return 'TimeoutError';
         }
-        if (error.message.includes("timeout")) {
-            return "TimeoutError";
+        if (msg.includes('validation')) {
+            return 'ValidationError';
         }
-        return "UnknownError";
+        return 'UnknownError';
     }
     getUserMessage(error, category) {
         const messages = {
-            ClientError: "Invalid request - check your input",
-            ServerError: "AI service temporarily unavailable",
-            ValidationError: "Invalid input - please check format",
-            AuthError: "API key issue - please reconfigure",
-            TimeoutError: "Request timed out - try again",
-            UnknownError: "Something went wrong",
+            'ClientError': 'Invalid request - check your input and try again',
+            'ServerError': 'AI service temporarily unavailable - retrying...',
+            'AuthError': 'API key issue - configure Perplexity API key',
+            'TimeoutError': 'Request timed out - network slow, try again',
+            'ValidationError': 'Invalid input format - check naming conventions',
+            'UnknownError': 'Unexpected error occurred'
         };
-        return `${messages[category] || "An error occurred"}: ${error.message.slice(0, 100)}`;
+        const baseMsg = messages[category] || 'Something went wrong';
+        return `${baseMsg}: ${error.message.slice(0, 100)}${error.message.length > 100 ? '...' : ''}`;
     }
-    getErrorActions(category) {
+    getQuickFixActions(category) {
         const actions = {
-            AuthError: ["Set API Key", "View Logs"],
-            ValidationError: ["Retry", "View Logs"],
-            ClientError: ["Retry", "View Logs"],
-            TimeoutError: ["Retry", "View Logs"],
+            'AuthError': ['🔑 Set API Key', '📋 View Logs'],
+            'ValidationError': ['🔄 Retry', '📋 View Logs'],
+            'ClientError': ['🔄 Retry', '📋 View Logs'],
+            'TimeoutError': ['🔄 Retry', '📋 View Logs'],
+            'ServerError': ['⏳ Retry Later', '📋 View Logs']
         };
-        return actions[category] || ["View Logs"];
+        return actions[category] || ['📋 View Logs'];
     }
-    handleAction(selection, _error) {
-        switch (selection) {
-            case "Set API Key":
-                vscode.commands.executeCommand("fabric.setApiKey");
+    async handleQuickFix(action, _error) {
+        switch (action) {
+            case '🔑 Set API Key':
+                await vscode.commands.executeCommand('fabric.setApiKey');
                 break;
-            case "Retry":
-                // Trigger retry logic in calling context
+            case '🔄 Retry':
+                // Caller handles retry logic
+                vscode.window.showInformationMessage('Please try the command again');
                 break;
-            case "View Logs":
+            case '📋 View Logs':
                 this.output.show();
                 break;
+            case '⏳ Retry Later':
+                vscode.window.showInformationMessage('Try again in a few minutes');
+                break;
         }
+    }
+    // Type-safe error creation
+    static validationError(message) {
+        const error = new Error(message);
+        error.name = 'ValidationError';
+        return error;
+    }
+    static httpError(status, message) {
+        const error = new Error(message);
+        error.name = `HttpError_${status}`;
+        return error;
     }
 }
 exports.ErrorHandler = ErrorHandler;
